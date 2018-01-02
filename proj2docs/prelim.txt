@@ -1,0 +1,26 @@
+I plan to modify the sys_bind, sys_connect, and sys_open system calls to allow root users to block certain UDP or TCP ports or to stop certain files from being accessed. 
+
+struct port_block {
+	unsigned short port;
+	int proto;
+	int dir;
+	long access_count;
+} 
+
+This is a loose definition of the struct that will be found in the firewall data structure. depending on the type of data structure that I end up using, there could be a few port_block*s in there as well for linkedlists/trees, as explained below.
+
+For the firewall, I'm going to make a data structure full of port_blocks that contain the port number, the protocol, and the direction in which each port is blocked. The data structure I'd like to use for this is a hashtable of port_block linkedlists, as it has insertions and searches at nearly O(1) time, but that might be too memory inefficient. If it is, I'd probably use a red-black or AVL tree as a backup, just to try to keep the port searching at least O(log(n)) time. If some ports get accessed a lot amore than others, a splay tree might not be a bad idea either.
+
+/net/socket.c/sys_bind and /net/socket.c/sys_connect have to be modified to check if the port they're trying to access is in the data structure before trying to do what they do. If a port is blocked to recieve, then sys_bind shouldn't let that happen. If a port is blocked to send, then sys_connect should return an error as well. Any accesses of blocked files or ports should increment their associated access count variables.
+
+long fw421_reset(void) should kfree() the data structure that holds all the port structs and return 0. It'll return an error if someone tries to run it as a non-root though.
+
+long fw421_block_port(int proto, int dir, unsigned short port) should check user privilages first. If they're cool, then it should check if a port is already in the table. If it's not, it should be added. Otherwise, if it is, check whether the direction in the table could be combined with the new one (ie the port is currently blocked for reading and the caller is trying to block it for reading too). If so, do that. Otherwise, return -ENOENT.
+
+long fw421_unblock_port(int proto, int dir, unsigned short port) should check credentials, then check the table for the port. If the port is in the table. If it's not, or it's in the wrong direction, return -ENONET. Otherwise, remove it from the table.
+
+long fw421_query(int proto, int dir, unsigned short port) should see if the table has a port struct matching the parameter. If it does, it should return the access count, otherwise return -ENOENT.
+
+For locking, I plan to use a combination of semaphores and mutexes to allow multiple reads of the data structure at a time, but only one write. 
+
+The file access control section of this project should be nearly identical to the firewall section, except the only thing the file_block struct will have in it is a char* filename and an access count, and it should only have to block /fs/open.c/sys_open from opening blocked files. The data structure used for the file access control will have different semaphores and mutexes to lock it than the firewall.

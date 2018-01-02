@@ -1,0 +1,21 @@
+I tried to make my test files as easy to run as possible,
+while also making them useful to you, the grader. To do
+this, I made them executable shell script files. These need to 
+be run as root, and don't need to be compiled to be ran.
+All you have to do is run ./port_test.sh or ./file_test.sh
+in this directory, and it should run everything by itself.
+It also runs make in proj2driver, if you don't feel like doing that yourself,
+since they use the driver files written there to make the system calls.
+(I'm not lazy, I'm resourceful.)
+
+port_test.sh tests port blocking. It first tries to ping google.com,
+to see if port 80 is accessible, then blocks port 80 from being bound to.
+It then tries to ping google again, which should fail. It prints the access
+count of port 80, then unblocks it to finish that off. It 
+then does the same stuff with UDP packets being sent to localhost.
+I'd like to say that the print messages are pretty self-explanitory.
+
+file_test.sh first HEAD's the first line of this file, then blocks it
+using the driver file in proj2driver. It then tries to HEAD this file again,
+but that should fail since the file's blocked. After that, it prints the access 
+count of this file and unblocks it.
